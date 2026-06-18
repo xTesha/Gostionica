@@ -46,7 +46,9 @@ import {
   Check,
   CalendarDays,
   Sun,
-  ListFilter
+  ListFilter,
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function App() {
@@ -56,6 +58,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isEditorMgmtOpen, setIsEditorMgmtOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
 
   // Guests data and grid states
@@ -431,9 +434,39 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 antialiased flex flex-col md:flex-row transition-colors duration-300 select-none">
       
+      {/* Mobile Sticky top bar */}
+      <header className="sticky top-0 z-30 w-full bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 flex items-center justify-between md:hidden shrink-0">
+        <div className="flex items-center space-x-2">
+          <span className="text-[8px] uppercase font-mono font-bold tracking-widest bg-red-600 text-white px-1.5 py-0.5 rounded-sm shrink-0">UŽIVO</span>
+          <h1 className="text-lg font-serif font-black italic uppercase tracking-tighter text-zinc-900 dark:text-white leading-none">Gostionica</h1>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Studijski sat widget on mobile header */}
+          <div className="text-right mr-1">
+            <div className="text-xs font-mono font-bold text-red-600 dark:text-red-500 tracking-wider">{timeStr}</div>
+          </div>
+          
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-205 cursor-pointer transition-colors"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Backdrop for mobile active sidebar */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/45 backdrop-blur-xs z-30 md:hidden" 
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* 1. EDITORIAL SIDEBAR for Desktop or Collapsed Drawer for Mobile */}
-      <aside className="w-full md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col justify-between">
-        <div className="flex-1 flex flex-col">
+      <aside className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col justify-between transform transition-transform duration-300 md:static md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:flex shrink-0 h-full md:h-auto`}>
+        <div className="flex-1 flex flex-col overflow-y-auto">
           {/* Newsroom Brand Section */}
           <div className="p-5 border-b border-zinc-200 dark:border-zinc-800">
             <div className="flex flex-col space-y-1">
@@ -456,7 +489,10 @@ export default function App() {
           <div className="py-4 px-3 overflow-y-auto space-y-1 hierarchy-shows">
             <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 px-3 mb-2">UREĐIVAČKI SEKTORI</p>
             <button
-              onClick={() => setSelectedShowFilter('all')}
+              onClick={() => {
+                setSelectedShowFilter('all');
+                setIsMobileMenuOpen(false);
+              }}
               className={`w-full px-3 py-1.5 rounded-md flex items-center justify-between text-left transition-all cursor-pointer ${
                 selectedShowFilter === 'all'
                   ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-bold shadow-sm'
@@ -473,7 +509,10 @@ export default function App() {
               return (
                 <button
                   key={show.id}
-                  onClick={() => setSelectedShowFilter(show.id)}
+                  onClick={() => {
+                    setSelectedShowFilter(show.id);
+                    setIsMobileMenuOpen(false);
+                  }}
                   className={`w-full px-3 py-1.5 rounded-md flex items-center justify-between text-left transition-all cursor-pointer ${
                     isSelected
                       ? `${show.badgeClass} ring-1 ring-zinc-900/10 dark:ring-white/20 font-bold shadow-sm`
@@ -774,8 +813,8 @@ export default function App() {
 
           </div>
 
-          {/* Sheet main data view (Responsive Table) */}
-          <div className="overflow-x-auto">
+          {/* Sheet main data view (Responsive Table / Mobile List) */}
+          <div className="w-full">
             {guestsLoading ? (
               <div className="p-12 text-center text-zinc-400">
                 <div className="relative inline-block w-8 h-8 rounded-full border-2 border-zinc-200 dark:border-zinc-800 border-t-zinc-900 animate-spin mb-3"></div>
@@ -805,187 +844,351 @@ export default function App() {
                 ) : null}
               </div>
             ) : (
-              <table className="w-full text-left border-collapse min-w-[1050px]">
-                <thead>
-                  <tr className="bg-zinc-100/80 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 select-none text-[10px] font-mono font-bold uppercase tracking-widest leading-none">
-                    <th className="px-5 py-4 text-center w-28">Status</th>
-                    <th className="px-4 py-4 w-60">Gost / Zanimanje</th>
-                    <th className="px-4 py-4">Tema razgovora</th>
-                    <th className="px-4 py-4 w-40">Termin</th>
-                    <th className="px-4 py-4 w-42 font-mono">Kontakt Telefon</th>
-                    <th className="px-4 py-4 min-w-[150px] max-w-[250px]">Napomena</th>
-                    <th className="px-4 py-4 w-40">Emisija</th>
-                    <th className="px-4 py-4 w-36">Urednik</th>
-                    <th className="px-5 py-4 text-center w-28">Akcije</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
-                  {filteredGuests.map((guest, idx) => {
+              <>
+                {/* Desktop view: Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[1050px]">
+                    <thead>
+                      <tr className="bg-zinc-100/80 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 select-none text-[10px] font-mono font-bold uppercase tracking-widest leading-none">
+                        <th className="px-5 py-4 text-center w-28">Status</th>
+                        <th className="px-4 py-4 w-60">Gost / Zanimanje</th>
+                        <th className="px-4 py-4">Tema razgovora</th>
+                        <th className="px-4 py-4 w-40">Termin</th>
+                        <th className="px-4 py-4 w-42 font-mono">Kontakt Telefon</th>
+                        <th className="px-4 py-4 min-w-[150px] max-w-[250px]">Napomena</th>
+                        <th className="px-4 py-4 w-40">Emisija</th>
+                        <th className="px-4 py-4 w-36">Urednik</th>
+                        <th className="px-5 py-4 text-center w-28">Akcije</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                      {filteredGuests.map((guest, idx) => {
+                        const writable = canEditGuest(guest);
+                        const showCfg = SHOWS[guest.showId];
+                        const statusCfg = GUEST_STATUS_MAP[guest.status];
+
+                        return (
+                          <tr 
+                            key={guest.id} 
+                            className={`hover:bg-zinc-50/75 dark:hover:bg-zinc-800/60 transition-colors ${
+                              idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/40 dark:bg-zinc-950/30'
+                            }`}
+                          >
+                            {/* Status Checkbox-style Toggle */}
+                            <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                              {writable ? (
+                                <select
+                                  value={guest.status}
+                                  onChange={(e) => handleInlineStatusChange(guest, e.target.value as GuestConfirmationStatus)}
+                                  className={`p-1 px-1.5 font-bold rounded-lg ${statusCfg?.colorClass} ${statusCfg?.bgClass} uppercase text-[10px] focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer`}
+                                >
+                                  <option value="predlozen">📋 Predložen</option>
+                                  <option value="na_cekanju">⏳ Čekanje</option>
+                                  <option value="potvrdjen">✅ Potvrđen</option>
+                                  <option value="otkazao">❌ Otkazao</option>
+                                </select>
+                              ) : (
+                                <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusCfg?.colorClass} ${statusCfg?.bgClass}`}>
+                                  {statusCfg?.label}
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3.5">
+                              <div className="font-bold text-slate-900 dark:text-white text-sm">
+                                {guest.fullName}
+                              </div>
+                              {guest.occupation ? (
+                                <p className="text-slate-400 dark:text-slate-500 text-[11px] mt-0.5 line-clamp-1" title={guest.occupation}>
+                                  {guest.occupation}
+                                </p>
+                              ) : (
+                                <p className="text-slate-350 dark:text-slate-600 text-[11px] italic mt-0.5">bez upisanog zanimanja</p>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3.5">
+                              {guest.topic ? (
+                                <p className="text-slate-700 dark:text-slate-300 font-medium line-clamp-2 max-w-[320px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg leading-relaxed" title={guest.topic}>
+                                  {guest.topic}
+                                </p>
+                              ) : (
+                                <span className="text-slate-350 dark:text-slate-600 italic">nije specificirano</span>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3.5 whitespace-nowrap font-medium text-slate-800 dark:text-slate-200">
+                              <div className="flex items-center gap-1.5">
+                                <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>
+                                  {new Date(guest.appointmentDate).toLocaleDateString('sr-RS', {
+                                    day: 'numeric',
+                                    month: 'short'
+                                  })}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mt-1 pl-5 text-[11px]">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                <span>{guest.appointmentTime} h</span>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3.5 whitespace-nowrap text-slate-700 dark:text-slate-300 font-mono">
+                              {guest.contactPhone ? (
+                                <a 
+                                  href={`tel:${guest.contactPhone}`} 
+                                  className="flex items-center gap-1.5 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors"
+                                >
+                                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>{guest.contactPhone}</span>
+                                </a>
+                              ) : (
+                                <span className="text-slate-350 dark:text-slate-600 italic">-</span>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3.5 min-w-[150px] max-w-[250px]">
+                              {guest.notes ? (
+                                <p className="text-slate-500 dark:text-slate-400 text-[11px] line-clamp-2 md:max-w-[230px] leading-relaxed" title={guest.notes}>
+                                  {guest.notes}
+                                </p>
+                              ) : (
+                                <span className="text-slate-300 dark:text-slate-700">-</span>
+                              )}
+                              {guest.updatedByName && (
+                                <span className="block text-[9px] text-slate-350 hover:text-slate-400 transition-colors mt-1 font-semibold">
+                                  (Izmenio {guest.updatedByName})
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3.5">
+                              {showCfg ? (
+                                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${showCfg.badgeClass}`}>
+                                  {showCfg.name}
+                                </span>
+                              ) : (
+                                <span className="text-slate-350 dark:text-slate-700 uppercase italic">Nepoznato</span>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3.5 whitespace-nowrap text-slate-500 dark:text-slate-400 text-[11px]">
+                              <p className="font-semibold truncate max-w-[110px]" title={guest.createdByName}>
+                                {guest.createdByName}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {new Date(guest.createdAt).toLocaleDateString('sr-RS', {
+                                  day: '2-digit',
+                                  month: '2-digit'
+                                })}
+                              </p>
+                            </td>
+
+                            <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                              {writable ? (
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedGuest(guest);
+                                      setIsGuestModalOpen(true);
+                                    }}
+                                    title="Izmeni unose"
+                                    className="p-1 px-1.5 rounded-lg text-slate-600 hover:text-indigo-650 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors active:scale-90"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteGuest(guest.id, guest.fullName)}
+                                    title="Ukloni gosta"
+                                    className="p-1 px-1.5 rounded-lg text-slate-600 hover:text-rose-650 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-90"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex justify-center" title="Samo urednik ove emisije može da menja podatke">
+                                  <Lock className="w-3.5 h-3.5 text-slate-350 dark:text-slate-650" />
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile view: Card stack list */}
+                <div className="block md:hidden divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                  {filteredGuests.map((guest) => {
                     const writable = canEditGuest(guest);
                     const showCfg = SHOWS[guest.showId];
                     const statusCfg = GUEST_STATUS_MAP[guest.status];
+                    const guestDate = new Date(guest.appointmentDate);
 
                     return (
-                      <tr 
-                        key={guest.id} 
-                        className={`hover:bg-zinc-50/75 dark:hover:bg-zinc-800/60 transition-colors ${
-                          idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/40 dark:bg-zinc-950/30'
-                        }`}
-                      >
-                        {/* Status Checkbox-style Toggle */}
-                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                          {writable ? (
-                            // Show interactable status picker inline just like sheets!
-                            <select
-                              value={guest.status}
-                              onChange={(e) => handleInlineStatusChange(guest, e.target.value as GuestConfirmationStatus)}
-                              className={`p-1 px-1.5 font-bold rounded-lg ${statusCfg?.colorClass} ${statusCfg?.bgClass} uppercase text-[10px] focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer`}
-                            >
-                              <option value="predlozen">📋 Predložen</option>
-                              <option value="na_cekanju">⏳ Čekanje</option>
-                              <option value="potvrdjen">✅ Potvrđen</option>
-                              <option value="otkazao">❌ Otkazao</option>
-                            </select>
-                          ) : (
-                            // Read-only indicator badge
-                            <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusCfg?.colorClass} ${statusCfg?.bgClass}`}>
-                              {statusCfg?.label}
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Guest full identity & line role */}
-                        <td className="px-4 py-3.5">
-                          <div className="font-bold text-slate-900 dark:text-white text-sm">
-                            {guest.fullName}
+                      <div key={guest.id} className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2.5">
+                          {/* Name & Occupation */}
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white leading-snug">
+                              {guest.fullName}
+                            </h4>
+                            {guest.occupation ? (
+                              <p className="text-zinc-400 dark:text-zinc-500 text-xs mt-0.5 leading-snug">
+                                {guest.occupation}
+                              </p>
+                            ) : (
+                              <p className="text-zinc-405 dark:text-zinc-600 text-xs italic mt-0.5">bez upisanog zanimanja</p>
+                            )}
                           </div>
-                          {guest.occupation ? (
-                            <p className="text-slate-400 dark:text-slate-500 text-[11px] mt-0.5 line-clamp-1" title={guest.occupation}>
-                              {guest.occupation}
-                            </p>
-                          ) : (
-                            <p className="text-slate-350 dark:text-slate-600 text-[11px] italic mt-0.5">bez upisanog zanimanja</p>
-                          )}
-                        </td>
 
-                        {/* Speech Topics */}
-                        <td className="px-4 py-3.5">
+                          {/* Status select/indicator badge */}
+                          <div>
+                            {writable ? (
+                              <select
+                                value={guest.status}
+                                onChange={(e) => handleInlineStatusChange(guest, e.target.value as GuestConfirmationStatus)}
+                                className={`p-1 px-1.5 font-bold rounded-lg ${statusCfg?.colorClass} ${statusCfg?.bgClass} uppercase text-[10px] focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer`}
+                              >
+                                <option value="predlozen">📋 Predložen</option>
+                                <option value="na_cekanju">⏳ Čekanje</option>
+                                <option value="potvrdjen">✅ Potvrđen</option>
+                                <option value="otkazao">❌ Otkazao</option>
+                              </select>
+                            ) : (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusCfg?.colorClass} ${statusCfg?.bgClass}`}>
+                                {statusCfg?.label}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Topic */}
+                        <div className="bg-zinc-50 dark:bg-zinc-950/40 p-2.5 rounded border border-zinc-200/60 dark:border-zinc-800/60">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Tema razgovora</p>
                           {guest.topic ? (
-                            <p className="text-slate-700 dark:text-slate-300 font-medium line-clamp-2 max-w-[320px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg leading-relaxed" title={guest.topic}>
+                            <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 leading-relaxed">
                               {guest.topic}
                             </p>
                           ) : (
-                            <span className="text-slate-350 dark:text-slate-600 italic">nije specificirano</span>
+                            <span className="text-zinc-350 dark:text-zinc-600 text-xs italic">Nije specificisano</span>
                           )}
-                        </td>
+                        </div>
 
-                        {/* Appointment DateTime info */}
-                        <td className="px-4 py-3.5 whitespace-nowrap font-medium text-slate-800 dark:text-slate-200">
-                          <div className="flex items-center gap-1.5">
-                            <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>
-                              {new Date(guest.appointmentDate).toLocaleDateString('sr-RS', {
-                                day: 'numeric',
-                                month: 'short'
-                              })}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mt-1 pl-5 text-[11px]">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <span>{guest.appointmentTime} h</span>
-                          </div>
-                        </td>
-
-                        {/* Phone details */}
-                        <td className="px-4 py-3.5 whitespace-nowrap text-slate-700 dark:text-slate-300 font-mono">
-                          {guest.contactPhone ? (
-                            <a 
-                              href={`tel:${guest.contactPhone}`} 
-                              className="flex items-center gap-1.5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                            >
-                              <Phone className="w-3.5 h-3.5 text-slate-400" />
-                              <span>{guest.contactPhone}</span>
-                            </a>
-                          ) : (
-                            <span className="text-slate-350 dark:text-slate-600 italic">-</span>
-                          )}
-                        </td>
-
-                        {/* Notes Column */}
-                        <td className="px-4 py-3.5 min-w-[150px] max-w-[250px]">
-                          {guest.notes ? (
-                            <p className="text-slate-500 dark:text-slate-400 text-[11px] line-clamp-2 md:max-w-[230px] leading-relaxed" title={guest.notes}>
-                              {guest.notes}
-                            </p>
-                          ) : (
-                            <span className="text-slate-300 dark:text-slate-700">-</span>
-                          )}
-                          {guest.updatedByName && (
-                            <span className="block text-[9px] text-slate-350 hover:text-slate-400 transition-colors mt-1 font-semibold">
-                              (Izmenio {guest.updatedByName})
-                            </span>
-                          )}
-                        </td>
-
-                        {/* TV Show ID label badge */}
-                        <td className="px-4 py-3.5">
-                          {showCfg ? (
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${showCfg.badgeClass}`}>
-                              {showCfg.name}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300 dark:text-slate-700 uppercase italic">Nepoznato</span>
-                          )}
-                        </td>
-
-                        {/* Original Editor signature */}
-                        <td className="px-4 py-3.5 whitespace-nowrap text-slate-500 dark:text-slate-400 text-[11px]">
-                          <p className="font-semibold truncate max-w-[110px]" title={guest.createdByName}>
-                            {guest.createdByName}
-                          </p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
-                            {new Date(guest.createdAt).toLocaleDateString('sr-RS', {
-                              day: '2-digit',
-                              month: '2-digit'
-                            })}
-                          </p>
-                        </td>
-
-                        {/* Quick Row CRUD Operations */}
-                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                          {writable ? (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                onClick={() => {
-                                  setSelectedGuest(guest);
-                                  setIsGuestModalOpen(true);
-                                }}
-                                title="Izmeni unose"
-                                className="p-1 px-1.5 rounded-lg text-slate-600 hover:text-indigo-650 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors active:scale-90"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteGuest(guest.id, guest.fullName)}
-                                title="Ukloni gosta"
-                                className="p-1 px-1.5 rounded-lg text-slate-600 hover:text-rose-650 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-90"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                        {/* Details: Date/Time, Phone, Show, Editor */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-zinc-400">Termin gostovanja</span>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-zinc-900 dark:text-zinc-100 font-semibold">
+                              <CalendarDays className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                              <span>
+                                {guestDate.toLocaleDateString('sr-RS', {
+                                  day: 'numeric',
+                                  month: 'short'
+                                })}
+                              </span>
+                              <span className="text-zinc-400">•</span>
+                              <span>{guest.appointmentTime} h</span>
                             </div>
-                          ) : (
-                            // Padlock visualization to satisfy requirements
-                            <div className="flex justify-center" title="Samo urednik ove emisije može da menja podatke">
-                              <Lock className="w-3.5 h-3.5 text-slate-350 dark:text-slate-650" />
-                            </div>
-                          )}
-                        </td>
+                          </div>
 
-                      </tr>
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-zinc-400">Telefon</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {guest.contactPhone ? (
+                                <a 
+                                  href={`tel:${guest.contactPhone}`} 
+                                  className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                >
+                                  <Phone className="w-3.5 h-3.5 text-indigo-500" />
+                                  {guest.contactPhone}
+                                </a>
+                              ) : (
+                                <span className="text-zinc-350 dark:text-zinc-650 italic text-[11px]">-</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-zinc-400">Emisija / Sektor</span>
+                            <div className="mt-0.5">
+                              {showCfg ? (
+                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${showCfg.badgeClass}`}>
+                                  {showCfg.name}
+                                </span>
+                              ) : (
+                                <span className="text-zinc-350 dark:text-zinc-650 italic text-[10px]">Nepoznato</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-zinc-400">Urednik</span>
+                            <div className="text-[11px] text-zinc-600 dark:text-zinc-400 mt-0.5">
+                              <p className="font-semibold leading-none text-zinc-700 dark:text-zinc-300">
+                                {guest.createdByName}
+                              </p>
+                              <p className="text-[9px] text-zinc-400 mt-0.5 leading-none">
+                                {new Date(guest.createdAt).toLocaleDateString('sr-RS', {
+                                  day: '2-digit',
+                                  month: '2-digit'
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Notes & Actions combined on 1 line if editable */}
+                        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                          <div className="min-w-0">
+                            {guest.notes ? (
+                              <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                <span className="font-bold text-zinc-400 dark:text-zinc-500">Napomena: </span>
+                                {guest.notes}
+                              </div>
+                            ) : null}
+                            {guest.updatedByName && (
+                              <span className="block text-[9px] text-zinc-400 italic">
+                                (Izmenio {guest.updatedByName})
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 text-right shrink-0">
+                            {writable ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => {
+                                    setSelectedGuest(guest);
+                                    setIsGuestModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-semibold flex items-center gap-1 transition-all"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                  <span>Izmeni</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteGuest(guest.id, guest.fullName)}
+                                  className="px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-1 transition-all"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Ukloni</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500" title="Samo urednik ove emisije može da menja podatke">
+                                <Lock className="w-3 h-3 text-zinc-300 dark:text-zinc-650" />
+                                <span>Zaključano</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </>
             )}
           </div>
 
