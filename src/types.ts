@@ -166,6 +166,7 @@ export interface UserProfile {
   displayName: string;
   role: UserRole;
   assignedShow: ShowId | "all";
+  assignedShows?: ShowId[];
   createdAt: string;
   isDeleted?: boolean;
   password?: string;

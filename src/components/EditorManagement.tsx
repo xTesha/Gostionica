@@ -24,6 +24,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [assignedShow, setAssignedShow] = useState<ShowId | 'all'>(ShowId.PRVE_INFO);
+  const [assignedShows, setAssignedShows] = useState<ShowId[]>([ShowId.PRVE_INFO]);
   const [role, setRole] = useState<UserRole>('editor');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -62,6 +63,11 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
     setEmail(user.email);
     setDisplayName(user.displayName);
     setAssignedShow(user.assignedShow);
+    if (user.assignedShows && Array.isArray(user.assignedShows)) {
+      setAssignedShows(user.assignedShows);
+    } else {
+      setAssignedShows(user.assignedShow && user.assignedShow !== 'all' ? [user.assignedShow as ShowId] : [ShowId.PRVE_INFO]);
+    }
     setRole(user.role);
     setPassword('');
     setError('');
@@ -74,6 +80,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
     setEmail('');
     setDisplayName('');
     setAssignedShow(ShowId.PRVE_INFO);
+    setAssignedShows([ShowId.PRVE_INFO]);
     setRole('editor');
     setPassword('');
     setError('');
@@ -131,7 +138,8 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
           email: email.trim().toLowerCase(),
           displayName: displayName.trim(),
           role,
-          assignedShow,
+          assignedShow: role === 'admin' ? 'all' : (assignedShows[0] || ShowId.PRVE_INFO),
+          assignedShows: role === 'admin' ? Object.values(ShowId) : assignedShows,
           password,
           createdAt: new Date().toISOString()
         };
@@ -155,7 +163,8 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
           ...existingUser,
           displayName: displayName.trim(),
           role,
-          assignedShow,
+          assignedShow: role === 'admin' ? 'all' : (assignedShows[0] || ShowId.PRVE_INFO),
+          assignedShows: role === 'admin' ? Object.values(ShowId) : assignedShows,
         };
 
         try {
@@ -324,16 +333,30 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
                         
                         <p className="text-[10px] font-mono text-zinc-500 mt-1">{user.email}</p>
                         
-                        {/* Assigned Show badge */}
-                        <div className="mt-1.5 flex items-center space-x-1.5">
-                          <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase">Sektor:</span>
-                          {showCfg ? (
-                            <span className={`text-[9px] font-bold px-1.5 py-0.2 select-none rounded ${showCfg.badgeClass}`}>
+                        {/* Assigned Show badges */}
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase">Sektori:</span>
+                          {user.role === 'admin' || user.assignedShow === 'all' ? (
+                            <span className="text-[9px] font-bold bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 px-1.5 py-0.5 select-none rounded">
+                              Sve emisije (Centralni)
+                            </span>
+                          ) : user.assignedShows && Array.isArray(user.assignedShows) && user.assignedShows.length > 0 ? (
+                            user.assignedShows.map((showId) => {
+                              const showCfg = SHOWS[showId];
+                              if (!showCfg) return null;
+                              return (
+                                <span key={showId} className={`text-[9px] font-bold px-1.5 py-0.5 select-none rounded ${showCfg.badgeClass}`}>
+                                  {showCfg.name}
+                                </span>
+                              );
+                            })
+                          ) : showCfg ? (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 select-none rounded ${showCfg.badgeClass}`}>
                               {showCfg.name}
                             </span>
                           ) : (
-                            <span className="text-[9px] font-bold bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 px-1.5 py-0.2 select-none rounded">
-                              Sve emisije (Centralni)
+                            <span className="text-[9px] font-bold bg-zinc-400 text-white px-1.5 py-0.5 select-none rounded">
+                              Nije dodeljeno
                             </span>
                           )}
                         </div>
@@ -467,22 +490,44 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
 
                   {/* Assigned Sector (Disabled if Role is Admin/Superurednik) */}
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                      Dodijeljena Emisija (Sektor)
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                      Dodeljene Emisije (Sektor rada)
                     </label>
-                    <select
-                      value={role === 'admin' ? 'all' : assignedShow}
-                      disabled={role === 'admin'}
-                      onChange={(e) => setAssignedShow(e.target.value as ShowId | 'all')}
-                      className="w-full px-2 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 disabled:text-zinc-400"
-                    >
-                      <option value="all">Sve Emisije (Centralna koordinacija)</option>
-                      {Object.values(SHOWS).map((show) => (
-                        <option key={show.id} value={show.id}>
-                          {show.name}
-                        </option>
-                      ))}
-                    </select>
+                    {role === 'admin' ? (
+                      <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-850 text-zinc-650 dark:text-zinc-400 rounded text-xs select-none">
+                        ✨ <span className="font-semibold text-zinc-800 dark:text-zinc-200">Sve emisije</span> su predefinisano dodeljene za administrativnu ulogu.
+                      </div>
+                    ) : (
+                      <div className="p-2 border border-zinc-200 dark:border-zinc-750 bg-white dark:bg-zinc-950/30 rounded max-h-[160px] overflow-y-auto space-y-1">
+                        {Object.values(SHOWS).map((show) => {
+                          const isChecked = assignedShows.includes(show.id);
+                          return (
+                            <label
+                              key={show.id}
+                              className="flex items-center gap-2 p-1 px-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-850 cursor-pointer select-none text-[11px] font-medium transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    if (assignedShows.length > 1) {
+                                      setAssignedShows(assignedShows.filter(id => id !== show.id));
+                                    }
+                                  } else {
+                                    setAssignedShows([...assignedShows, show.id]);
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer"
+                              />
+                              <span className={isChecked ? "text-zinc-950 dark:text-zinc-50 font-bold" : "text-zinc-500 dark:text-zinc-400"}>
+                                {show.name}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Action buttons */}

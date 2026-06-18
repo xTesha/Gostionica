@@ -84,7 +84,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, isForceAuth 
           }
 
           if (profileData.password && profileData.password !== password) {
-            throw new Error('auth/wrong-password');
+            throw new Error('Netačan email ili lozinka.');
           }
 
           // Save the editor session in localStorage

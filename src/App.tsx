@@ -187,6 +187,7 @@ export default function App() {
               displayName: user.displayName || user.email?.split('@')[0] || 'Urednik',
               role: 'editor',
               assignedShow: ShowId.PRVE_INFO,
+              assignedShows: [ShowId.PRVE_INFO],
               createdAt: new Date().toISOString()
             };
             try {
@@ -246,6 +247,7 @@ export default function App() {
   // Log out helper
   const handleLogout = async () => {
     localStorage.removeItem('predefined_admin_session');
+    localStorage.removeItem('editor_session');
     await signOut(auth);
     setCurrentUser(null);
     setUserProfile(null);
@@ -332,6 +334,9 @@ export default function App() {
   const canEditGuest = (guest: Guest): boolean => {
     if (!userProfile) return false;
     if (userProfile.role === 'admin' || userProfile.assignedShow === 'all') return true;
+    if (userProfile.assignedShows && Array.isArray(userProfile.assignedShows)) {
+      if (userProfile.assignedShows.includes(guest.showId)) return true;
+    }
     return userProfile.assignedShow === guest.showId;
   };
 
@@ -471,7 +476,7 @@ export default function App() {
               if (profile.uid === 'admin_predefined') {
                 setCurrentUser({ uid: 'admin_predefined', email: profile.email, isPredefinedAdmin: true });
               } else {
-                setCurrentUser(auth.currentUser);
+                setCurrentUser({ uid: profile.uid, email: profile.email });
               }
             }}
             isForceAuth={true}
@@ -599,8 +604,14 @@ export default function App() {
               
               <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-zinc-200 dark:border-zinc-800 text-[9px] font-medium leading-normal">
                 <span className="text-zinc-500 uppercase font-bold block mb-0.5">Dodeljen sektor:</span>
-                <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                  {userProfile.assignedShow === 'all' ? 'Sve emisije' : SHOWS[userProfile.assignedShow]?.name}
+                <span className="font-bold text-zinc-800 dark:text-zinc-200 block truncate">
+                  {userProfile.role === 'admin' || userProfile.assignedShow === 'all' ? (
+                    'Sve emisije'
+                  ) : userProfile.assignedShows && Array.isArray(userProfile.assignedShows) && userProfile.assignedShows.length > 0 ? (
+                    userProfile.assignedShows.map(id => SHOWS[id]?.name || id).join(', ')
+                  ) : (
+                    SHOWS[userProfile.assignedShow]?.name || 'Nije dodeljeno'
+                  )}
                 </span>
               </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Guest, ShowId, SHOWS, UserProfile, GuestConfirmationStatus } from '../types';
 import { X, Calendar, Clock, User, Briefcase, Phone, BookOpen, FileText, CheckCircle, HelpCircle, XCircle, Search } from 'lucide-react';
@@ -196,7 +196,11 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
       setStatus('predlozen');
       
       // Select first eligible show
-      if (userProfile.assignedShow !== 'all') {
+      if (userProfile.role === 'admin' || userProfile.assignedShow === 'all') {
+        setShowId(ShowId.PRVE_INFO);
+      } else if (userProfile.assignedShows && Array.isArray(userProfile.assignedShows) && userProfile.assignedShows.length > 0) {
+        setShowId(userProfile.assignedShows[0]);
+      } else if (userProfile.assignedShow) {
         setShowId(userProfile.assignedShow);
       } else {
         setShowId(ShowId.PRVE_INFO);
@@ -300,6 +304,19 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
   };
 
   // Determine which shows this user can manage
+  const eligibleShows = useMemo(() => {
+    if (userProfile.role === 'admin' || userProfile.assignedShow === 'all') {
+      return Object.values(SHOWS);
+    }
+    if (userProfile.assignedShows && Array.isArray(userProfile.assignedShows) && userProfile.assignedShows.length > 0) {
+      return Object.values(SHOWS).filter(show => userProfile.assignedShows?.includes(show.id));
+    }
+    if (userProfile.assignedShow) {
+      return Object.values(SHOWS).filter(show => show.id === userProfile.assignedShow);
+    }
+    return [];
+  }, [userProfile]);
+
   const canChooseAnyShow = userProfile.role === 'admin' || userProfile.assignedShow === 'all';
 
   return (
@@ -345,22 +362,27 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5 label-required">
                 Emisija / TV Program
               </label>
-              {canChooseAnyShow ? (
-                <select
-                  value={showId}
-                  onChange={(e) => setShowId(e.target.value as ShowId)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs font-semibold"
-                >
-                  {Object.values(SHOWS).map((show) => (
-                    <option key={show.id} value={show.id} className="bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white font-medium">
-                      {show.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium">
-                  {SHOWS[showId]?.name} <span className="text-xs text-slate-400 font-normal ml-1">(Dozvoljeno samo za Vašu dodeljenu emisiju)</span>
-                </div>
+              <select
+                value={showId}
+                onChange={(e) => setShowId(e.target.value as ShowId)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs font-semibold"
+                disabled={eligibleShows.length <= 1}
+              >
+                {eligibleShows.map((show) => (
+                  <option key={show.id} value={show.id} className="bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white font-medium">
+                    {show.name}
+                  </option>
+                ))}
+              </select>
+              {eligibleShows.length === 1 && (
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">
+                  (Imate pravo unosa samo za ovu dodeljenu emisiju)
+                </p>
+              )}
+              {eligibleShows.length > 1 && !canChooseAnyShow && (
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">
+                  (Možete izabrati jednu od Vama dodeljenih emisija)
+                </p>
               )}
             </div>
 
