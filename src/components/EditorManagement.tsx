@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { db, firebaseConfig, OperationType, handleFirestoreError } from '../firebase';
+import { db, auth, firebaseConfig, OperationType, handleFirestoreError } from '../firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { UserProfile, SHOWS, ShowId, UserRole } from '../types';
-import { Plus, Trash2, Edit3, ShieldAlert, Key, UserPlus, X, Check, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, Edit3, ShieldAlert, Key, UserPlus, X, Check, Eye, EyeOff, RotateCcw, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface EditorManagementProps {
@@ -26,6 +26,10 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
   const [assignedShow, setAssignedShow] = useState<ShowId | 'all'>(ShowId.PRVE_INFO);
   const [role, setRole] = useState<UserRole>('editor');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Custom confirmation / alert states to bypass iframe-blocking window.confirm/alert
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserProfile | null>(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   // Subscribe to users collection
   useEffect(() => {
@@ -115,11 +119,11 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
         // 1. Double check email uniqueness in current loaded users
         const exists = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
         if (exists) {
-          throw new Error('Korisnik sa ovom e-mail adresom već postoji u bazi.');
+          throw new Error('Korisnik sa ovom e-mail adresom već postoji u aktivnoj bazi.');
         }
 
-        // 2. Create the Firebase Auth account using secure secondary app context
-        const uid = await createAuthUserSecondaryApp(email.trim(), password);
+        // 2. Generate custom unique UID for credentials stored directly in Firestore
+        const uid = 'editor_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
 
         // 3. Write UserProfile to Firestore users collection
         const profile: UserProfile = {
@@ -128,6 +132,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
           displayName: displayName.trim(),
           role,
           assignedShow,
+          password,
           createdAt: new Date().toISOString()
         };
 
@@ -165,7 +170,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
       console.error("User administration action error:", err);
       let errMsg = err.message || 'Došlo je do neočekivane greške.';
       if (err.code === 'auth/email-already-in-use') {
-        errMsg = 'E-mail je već u upotrebi.';
+        errMsg = `E-mail adresa "${email}" je već u upotrebi u sistemu.`;
       } else if (err.code === 'auth/invalid-email') {
         errMsg = 'Uneli ste netačan format e-mail adrese.';
       }
@@ -175,23 +180,36 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
     }
   };
 
-  // Deleting user profile from Firestore users collection
-  const handleDeleteUser = async (user: UserProfile) => {
+  // Prepares the user for custom state deletion instead of window.confirm
+  const handleDeleteUser = (user: UserProfile) => {
     // Cannot delete active admin predefined session
     if (user.uid === 'admin_predefined') {
-      alert('Sistemski predefinisan administratorski nalog se ne može brisati.');
+      setAlertMessage('Sistemski predefinisan administratorski nalog se ne može brisati.');
       return;
     }
+    setDeleteConfirmUser(user);
+  };
 
-    if (window.confirm(`Da li ste sigurni da želite da uklonite urednika "${user.displayName}"?\n\nUrednik više neće imati nikakav pristup centralnom registru.`)) {
+  // Performs the actual deletion from Firestore when confirmed in custom UI
+  const handleExecuteDeleteUser = async () => {
+    if (!deleteConfirmUser) return;
+    const userToDel = deleteConfirmUser;
+    setDeleteConfirmUser(null);
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+    try {
       try {
-        await deleteDoc(doc(db, 'users', user.uid));
-        setSuccess(`Urednik "${user.displayName}" je uspešno uklonjen.`);
-      } catch (err) {
-        console.error("Error deleting user document:", err);
-        setError('Došlo je do greške prilikom brisanja urednika.');
-        handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}`);
+        await deleteDoc(doc(db, 'users', userToDel.uid));
+      } catch (dbErr) {
+        handleFirestoreError(dbErr, OperationType.DELETE, `users/${userToDel.uid}`);
       }
+      setSuccess(`Urednik "${userToDel.displayName}" je uspešno i u potpunosti obrisan.`);
+    } catch (err: any) {
+      console.error("Error deleting user document:", err);
+      setError(err.message || 'Došlo je do greške prilikom brisanja naloga.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -257,9 +275,9 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
         <div className="flex-1 overflow-y-auto p-6 flex flex-col lg:flex-row gap-6">
           
           {/* Main List of Registered Users */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-4 text-left">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+              <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
                 Aktivni Urednici ({users.length})
               </span>
               
@@ -325,7 +343,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
                       <div className="flex items-center space-x-1">
                         <button
                           onClick={() => handleStartEdit(user)}
-                          title="Izmeni urednika"
+                          title="Izmeni prodajni ili uređivački status"
                           className="p-1 px-1.5 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded transition-colors cursor-pointer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -335,7 +353,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
                           <button
                             onClick={() => handleDeleteUser(user)}
                             title="Obriši urednika"
-                            className="p-1 px-1.5 border border-zinc-200 dark:border-zinc-800 hover:border-red-400 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded transition-colors cursor-pointer"
+                            className="p-1 px-1.5 border border-zinc-200 dark:border-zinc-800 hover:border-red-400 text-zinc-450 hover:text-red-600 dark:hover:text-red-400 rounded transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -491,6 +509,77 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
 
         </div>
       </motion.div>
+
+      {/* Custom user deletion confirmation modal */}
+      <AnimatePresence>
+        {deleteConfirmUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden text-left"
+            >
+              <div className="p-5">
+                <h3 className="text-sm font-bold text-zinc-950 dark:text-zinc-50 font-serif uppercase tracking-tight">
+                  Uklanjanje Urednika
+                </h3>
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-sans font-normal">
+                  Da li ste sigurni da želite da obrišete i skroz uklonite urednika <strong className="text-zinc-900 dark:text-zinc-100 font-bold">"{deleteConfirmUser.displayName}"</strong>? 
+                  <br /><br />
+                  Korisnikov nalog i pristup centralnom registru biće kompletno i trajno obrisani iz baze. Ova akcija se ne može poništiti.
+                </p>
+                <div className="mt-5 flex gap-2 justify-end">
+                  <button
+                    onClick={() => setDeleteConfirmUser(null)}
+                    className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-[10px] font-bold uppercase text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
+                  >
+                    Odustani
+                  </button>
+                  <button
+                    onClick={handleExecuteDeleteUser}
+                    className="px-3 py-1.5 rounded-lg bg-red-650 hover:bg-red-700 text-white text-[10px] font-bold uppercase cursor-pointer"
+                  >
+                    Obriši nalog
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom alert system */}
+      <AnimatePresence>
+        {alertMessage && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden text-left"
+            >
+              <div className="p-5">
+                <h3 className="text-sm font-bold text-zinc-950 dark:text-zinc-50 font-serif uppercase tracking-tight flex items-center gap-1.5 text-red-600">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>Sistemska Greška</span>
+                </h3>
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-sans font-normal">
+                  {alertMessage}
+                </p>
+                <div className="mt-5 flex justify-end">
+                  <button
+                    onClick={() => setAlertMessage(null)}
+                    className="px-3 py-1.5 rounded-lg bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 text-[10px] font-bold uppercase cursor-pointer"
+                  >
+                    U redu
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

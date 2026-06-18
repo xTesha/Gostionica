@@ -167,6 +167,8 @@ export interface UserProfile {
   role: UserRole;
   assignedShow: ShowId | "all";
   createdAt: string;
+  isDeleted?: boolean;
+  password?: string;
 }
 
 export type GuestConfirmationStatus = "potvrdjen" | "otkazao" | "na_cekanju" | "predlozen";

@@ -109,6 +109,55 @@ export default function App() {
   // Listen to Auth State
   useEffect(() => {
     let unsubscribeProfile: (() => void) | null = null;
+    
+    // Check if there is an active custom localStorage session
+    const cachedAdmin = localStorage.getItem('predefined_admin_session');
+    const cachedEditor = localStorage.getItem('editor_session');
+    
+    if (cachedAdmin) {
+      try {
+        const adminProfile = JSON.parse(cachedAdmin) as UserProfile;
+        setCurrentUser({ uid: 'admin_predefined', email: adminProfile.email, isPredefinedAdmin: true });
+        setUserProfile(adminProfile);
+        setAuthLoading(false);
+        return;
+      } catch (e) {
+        localStorage.removeItem('predefined_admin_session');
+      }
+    } else if (cachedEditor) {
+      try {
+        const editorProfile = JSON.parse(cachedEditor) as UserProfile;
+        setCurrentUser({ uid: editorProfile.uid, email: editorProfile.email });
+        setUserProfile(editorProfile);
+        setAuthLoading(false);
+        
+        // Also subscribe real-time to their document in Firestore to fetch any live edits (e.g. show reassignment)
+        const userDocRef = doc(db, 'users', editorProfile.uid);
+        unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const profileData = docSnap.data() as UserProfile;
+            setUserProfile(profileData);
+            localStorage.setItem('editor_session', JSON.stringify(profileData));
+          } else {
+            // Profile has been deleted! Sign them out immediately
+            setCurrentUser(null);
+            setUserProfile(null);
+            localStorage.removeItem('editor_session');
+            setNotification({ type: 'error', message: 'Vaš nalog je uklonjen iz baze.' });
+          }
+        }, (error) => {
+          console.error("Firestore user profile live listener error:", error);
+          handleFirestoreError(error, OperationType.GET, `users/${editorProfile.uid}`);
+        });
+        
+        return () => {
+          if (unsubscribeProfile) unsubscribeProfile();
+        };
+      } catch (e) {
+        localStorage.removeItem('editor_session');
+      }
+    }
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setAuthLoading(true);
       if (unsubscribeProfile) {
@@ -119,19 +168,33 @@ export default function App() {
         setCurrentUser(user);
         // Get user profile on change
         const userDocRef = doc(db, 'users', user.uid);
-        unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
+        unsubscribeProfile = onSnapshot(userDocRef, async (docSnap) => {
           if (docSnap.exists()) {
-            setUserProfile(docSnap.data() as UserProfile);
+            const profileData = docSnap.data() as UserProfile;
+            if (profileData.isDeleted) {
+              setUserProfile(null);
+              setCurrentUser(null);
+              signOut(auth);
+              setNotification({ type: 'error', message: 'Vaš nalog je deaktiviran od strane administratora.' });
+            } else {
+              setUserProfile(profileData);
+            }
           } else {
-            // Fallback profile
-            setUserProfile({
+            // Fallback profile and auto-saving to database so they can be managed!
+            const fallbackProfile: UserProfile = {
               uid: user.uid,
               email: user.email || '',
               displayName: user.displayName || user.email?.split('@')[0] || 'Urednik',
               role: 'editor',
               assignedShow: ShowId.PRVE_INFO,
               createdAt: new Date().toISOString()
-            });
+            };
+            try {
+              await setDoc(userDocRef, fallbackProfile);
+            } catch (e) {
+              console.error("Greška pri kreiranju fallback profila u Firestore:", e);
+            }
+            setUserProfile(fallbackProfile);
           }
           setAuthLoading(false);
         }, (error) => {
@@ -140,21 +203,8 @@ export default function App() {
           handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
         });
       } else {
-        // Intercept predefined admin session
-        const cachedAdmin = localStorage.getItem('predefined_admin_session');
-        if (cachedAdmin) {
-          try {
-            const adminProfile = JSON.parse(cachedAdmin) as UserProfile;
-            setCurrentUser({ uid: 'admin_predefined', email: adminProfile.email, isPredefinedAdmin: true });
-            setUserProfile(adminProfile);
-          } catch (e) {
-            setCurrentUser(null);
-            setUserProfile(null);
-          }
-        } else {
-          setCurrentUser(null);
-          setUserProfile(null);
-        }
+        setCurrentUser(null);
+        setUserProfile(null);
         setAuthLoading(false);
       }
     });

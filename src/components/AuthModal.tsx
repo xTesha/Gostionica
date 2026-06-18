@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, OperationType, handleFirestoreError } from '../firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ShowId, SHOWS, UserProfile } from '../types';
 import { X, Lock, Mail, ShieldAlert, CheckCircle, Key, Eye, EyeOff } from 'lucide-react';
 
@@ -64,37 +64,70 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, isForceAuth 
         }, 1200);
 
       } else {
-        // Standard user login (email/password)
-        const credentials = await signInWithEmailAndPassword(auth, email.trim(), password);
-        const user = credentials.user;
-
-        let userDoc;
+        // Standard user login (email/password) using complete-removal custom credentials
+        const targetEmail = email.trim().toLowerCase();
+        let querySnapshot;
         try {
-          userDoc = await getDoc(doc(db, 'users', user.uid));
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('email', '==', targetEmail));
+          querySnapshot = await getDocs(q);
         } catch (err) {
-          handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
+          handleFirestoreError(err, OperationType.GET, 'users');
         }
 
-        if (userDoc && userDoc.exists()) {
-          onAuthSuccess(userDoc.data() as UserProfile);
+        if (querySnapshot && !querySnapshot.empty) {
+          const userDoc = querySnapshot.docs[0];
+          const profileData = userDoc.data() as UserProfile;
+          
+          if (profileData.isDeleted) {
+            throw new Error('Vaš nalog je deaktiviran od strane administratora.');
+          }
+
+          if (profileData.password && profileData.password !== password) {
+            throw new Error('auth/wrong-password');
+          }
+
+          // Save the editor session in localStorage
+          localStorage.setItem('editor_session', JSON.stringify(profileData));
+
+          onAuthSuccess(profileData);
           onClose();
         } else {
-          // Fallback user profile
-          const profile: UserProfile = {
-            uid: user.uid,
-            email: user.email || '',
-            displayName: user.displayName || user.email?.split('@')[0] || 'Urednik',
-            role: 'editor',
-            assignedShow: ShowId.PRVE_INFO,
-            createdAt: new Date().toISOString()
-          };
+          // Fallback to standard Firebase Auth
           try {
-            await setDoc(doc(db, 'users', user.uid), profile);
-          } catch (err) {
-            handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}`);
+            const credentials = await signInWithEmailAndPassword(auth, email.trim(), password);
+            const user = credentials.user;
+
+            let userDoc;
+            try {
+              userDoc = await getDoc(doc(db, 'users', user.uid));
+            } catch (err) {
+              handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
+            }
+
+            if (userDoc && userDoc.exists()) {
+              const profileData = userDoc.data() as UserProfile;
+              localStorage.setItem('editor_session', JSON.stringify(profileData));
+              onAuthSuccess(profileData);
+              onClose();
+            } else {
+              const fallbackProfile: UserProfile = {
+                uid: user.uid,
+                email: user.email || '',
+                displayName: user.displayName || user.email?.split('@')[0] || 'Urednik',
+                role: 'editor',
+                assignedShow: ShowId.PRVE_INFO,
+                password: password,
+                createdAt: new Date().toISOString()
+              };
+              await setDoc(doc(db, 'users', user.uid), fallbackProfile);
+              localStorage.setItem('editor_session', JSON.stringify(fallbackProfile));
+              onAuthSuccess(fallbackProfile);
+              onClose();
+            }
+          } catch (firebaseAuthErr) {
+            throw new Error('Netačan email ili lozinka.');
           }
-          onAuthSuccess(profile);
-          onClose();
         }
       }
     } catch (err: any) {
