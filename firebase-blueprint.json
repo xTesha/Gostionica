@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile containing roles and assigned shows.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "editor", "viewer"] },
+        "assignedShow": { "type": "string", "enum": ["all", "prve_info", "info_jutro", "info_dan", "rat_uzivo", "otvoreni_studio", "da_se_ne_lazemo", "bez_garda"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "displayName", "role", "assignedShow", "createdAt"]
+    },
+    "Guest": {
+      "title": "Guest",
+      "description": "A guest guest-listing entry registered for a specific TV show.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "occupation": { "type": "string" },
+        "topic": { "type": "string" },
+        "appointmentDate": { "type": "string" },
+        "appointmentTime": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["potvrdjen", "otkazao", "na_cekanju", "predlozen"] },
+        "showId": { "type": "string", "enum": ["prve_info", "info_jutro", "info_dan", "rat_uzivo", "otvoreni_studio", "da_se_ne_lazemo", "bez_garda"] },
+        "createdByUid": { "type": "string" },
+        "createdByEmail": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedByUid": { "type": "string" },
+        "updatedByEmail": { "type": "string" },
+        "updatedByName": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["fullName", "occupation", "topic", "appointmentDate", "appointmentTime", "contactPhone", "status", "showId", "createdByUid", "createdByEmail", "createdByName", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User configuration profiles."
+    },
+    "/guests/{guestId}": {
+      "schema": "Guest",
+      "description": "A TV broadcast guest representation."
+    }
+  }
+}

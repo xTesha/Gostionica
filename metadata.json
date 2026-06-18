@@ -1,0 +1,6 @@
+{
+  "name": "Registar Gostiju po Emisijama",
+  "description": "Aplikacija za evidenciju gostiju po TV emisijama sa uredničkim pravima.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
