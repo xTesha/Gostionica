@@ -225,9 +225,8 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
     }
 
     // Time/date conflict detection logic:
-    // "nemoguce istog gosta pozvati u isti termin u dve razlicite emisije, dakle ako je neko zakazan za 10h odredjenog datuma, ne moze biti zakazan u tipa 10,11,12 sta znam istog tog datuma za drugu neku emisiju."
+    // "ne moze dan pre ni dan posle niti taj dan da postoji mogucnost da moze da se upise taj gost na gostovanje"
     const guestCleanName = fullName.toLowerCase().trim();
-    const parsedNewHour = parseInt(appointmentTime || '10:00', 10);
 
     if (guests && Array.isArray(guests)) {
       const conflict = guests.find(g => {
@@ -236,23 +235,15 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
         
         // Match guest name
         const sameGuestName = g.fullName.toLowerCase().trim() === guestCleanName;
-        // Match exact date
-        const sameDate = g.appointmentDate === appointmentDate;
         
-        if (sameGuestName && sameDate) {
-          // If different show or same show too, but primarily different show as user requested
-          const isDifferentShow = g.showId !== showId;
-          
-          if (isDifferentShow) {
-            // Check if the appointment time is in conflict (difference is less than 3 hours)
-            const parsedHour = parseInt(g.appointmentTime || '10:00', 10);
-            if (!isNaN(parsedNewHour) && !isNaN(parsedHour)) {
-              const diffHours = Math.abs(parsedNewHour - parsedHour);
-              if (diffHours < 3) {
-                return true;
-              }
-            } else {
-              return g.appointmentTime === appointmentTime;
+        if (sameGuestName) {
+          const d1 = new Date(g.appointmentDate + "T00:00:00Z");
+          const d2 = new Date(appointmentDate + "T00:00:00Z");
+          if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+            const diffTime = Math.abs(d2.getTime() - d1.getTime());
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays <= 1) {
+              return true;
             }
           }
         }
@@ -261,8 +252,9 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
 
       if (conflict) {
         const conflictShowName = SHOWS[conflict.showId]?.name || conflict.showId;
+        const formattedConflictDate = new Date(conflict.appointmentDate).toLocaleDateString('sr-RS');
         setValidationError(
-          `Gost "${conflict.fullName}" je već zakazan dana ${new Date(appointmentDate).toLocaleDateString('sr-RS')} u ${conflict.appointmentTime} h u emisiji "${conflictShowName}". Nemoguće je zakazati istog gosta u istom periodu za drugu emisiju.`
+          `Gost "${conflict.fullName}" je već upisan dana ${formattedConflictDate} u emisiji "${conflictShowName}". Nije dozvoljeno zakazati gosta na taj dan, kao ni dan pre ili dan posle tog gostovanja.`
         );
         return;
       }

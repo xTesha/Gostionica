@@ -24,7 +24,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [assignedShow, setAssignedShow] = useState<ShowId | 'all'>(ShowId.PRVE_INFO);
-  const [assignedShows, setAssignedShows] = useState<ShowId[]>([ShowId.PRVE_INFO]);
+  const [assignedShows, setAssignedShows] = useState<ShowId[]>([]);
   const [role, setRole] = useState<UserRole>('editor');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -80,7 +80,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
     setEmail('');
     setDisplayName('');
     setAssignedShow(ShowId.PRVE_INFO);
-    setAssignedShows([ShowId.PRVE_INFO]);
+    setAssignedShows([]);
     setRole('editor');
     setPassword('');
     setError('');
@@ -117,6 +117,10 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
     setActionLoading(true);
 
     try {
+      if (role !== 'admin' && (!assignedShows || assignedShows.length === 0)) {
+        throw new Error('Morate dodeliti minimum jednu emisiju uredniku.');
+      }
+
       if (isEditing === 'new') {
         // Validation checks
         if (!displayName.trim()) throw new Error('Unesite ime i prezime urednika.');
