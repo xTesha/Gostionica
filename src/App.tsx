@@ -333,6 +333,7 @@ export default function App() {
   // Access rights evaluator helper
   const canEditGuest = (guest: Guest): boolean => {
     if (!userProfile) return false;
+    if (userProfile.role === 'viewer') return false;
     if (userProfile.role === 'admin' || userProfile.assignedShow === 'all') return true;
     if (userProfile.assignedShows && Array.isArray(userProfile.assignedShows)) {
       if (userProfile.assignedShows.includes(guest.showId)) return true;
@@ -597,7 +598,7 @@ export default function App() {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-zinc-950 dark:text-zinc-100 truncate leading-none">{userProfile.displayName}</p>
                   <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mt-1 truncate">
-                    {userProfile.role === 'admin' ? 'Superurednik' : 'Online • Urednik'}
+                    {userProfile.role === 'admin' ? 'Superurednik' : userProfile.role === 'viewer' ? 'Online • Gledalac' : 'Online • Urednik'}
                   </p>
                 </div>
               </div>
@@ -605,7 +606,9 @@ export default function App() {
               <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-zinc-200 dark:border-zinc-800 text-[9px] font-medium leading-normal">
                 <span className="text-zinc-500 uppercase font-bold block mb-0.5">Dodeljen sektor:</span>
                 <span className="font-bold text-zinc-800 dark:text-zinc-200 block truncate">
-                  {userProfile.role === 'admin' || userProfile.assignedShow === 'all' ? (
+                  {userProfile.role === 'viewer' ? (
+                    'Sve emisije (Pregled)'
+                  ) : userProfile.role === 'admin' || userProfile.assignedShow === 'all' ? (
                     'Sve emisije'
                   ) : userProfile.assignedShows && Array.isArray(userProfile.assignedShows) && userProfile.assignedShows.length > 0 ? (
                     userProfile.assignedShows.map(id => SHOWS[id]?.name || id).join(', ')
@@ -682,8 +685,8 @@ export default function App() {
               <span>Izvezi CSV</span>
             </button>
 
-            {/* Add Guest Entry - Locked if not registered */}
-            {currentUser ? (
+            {/* Add Guest Entry - Locked if not registered or if viewer role */}
+            {currentUser && userProfile?.role !== 'viewer' ? (
               <button
                 onClick={() => {
                   setSelectedGuest(null);
@@ -696,8 +699,12 @@ export default function App() {
               </button>
             ) : (
               <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="p-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 text-xs font-mono font-bold uppercase tracking-widest rounded transition-all flex items-center gap-1.5 border border-dashed border-zinc-300 dark:border-zinc-750 cursor-not-allowed"
+                onClick={() => {
+                  if (!currentUser) setIsAuthModalOpen(true);
+                }}
+                className={`p-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 text-xs font-mono font-bold uppercase tracking-widest rounded transition-all flex items-center gap-1.5 border border-dashed border-zinc-300 dark:border-zinc-750 ${
+                  !currentUser ? 'cursor-not-allowed' : 'opacity-70 cursor-not-allowed'
+                }`}
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span>Upiši gosta</span>
@@ -708,7 +715,7 @@ export default function App() {
 
         {/* Warning card for viewer */}
         <AnimatePresence>
-          {!currentUser && (
+          {(!currentUser || userProfile?.role === 'viewer') && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
@@ -719,15 +726,21 @@ export default function App() {
                 <div className="flex items-center gap-2.5">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>
-                    <strong>Režim posmatrača:</strong> Možete pregledati sve unose. Prijavite se kako biste mogli da uređujete rasporede emisija.
+                    {userProfile?.role === 'viewer' ? (
+                      <span><strong>Režim gledaoca:</strong> Prijavljeni ste sa nalogom za pregled i pretragu. Nemate mogućnost unosa ili izmene podataka.</span>
+                    ) : (
+                      <span><strong>Režim posmatrača:</strong> Možete pregledati sve unose. Prijavite se kako biste mogli da uređujete rasporede emisija.</span>
+                    )}
                   </span>
                 </div>
-                <button 
-                  onClick={() => setIsAuthModalOpen(true)}
-                  className="text-[10px] font-mono font-bold uppercase tracking-wider bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 px-3 py-1.5 rounded transition-all cursor-pointer"
-                >
-                  Prijavi se odmah
-                </button>
+                {!currentUser && (
+                  <button 
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="text-[10px] font-mono font-bold uppercase tracking-wider bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 px-3 py-1.5 rounded transition-all cursor-pointer"
+                  >
+                    Prijavi se odmah
+                  </button>
+                )}
               </div>
             </motion.div>
           )}

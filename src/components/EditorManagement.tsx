@@ -117,7 +117,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
     setActionLoading(true);
 
     try {
-      if (role !== 'admin' && (!assignedShows || assignedShows.length === 0)) {
+      if (role === 'editor' && (!assignedShows || assignedShows.length === 0)) {
         throw new Error('Morate dodeliti minimum jednu emisiju uredniku.');
       }
 
@@ -142,8 +142,8 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
           email: email.trim().toLowerCase(),
           displayName: displayName.trim(),
           role,
-          assignedShow: role === 'admin' ? 'all' : (assignedShows[0] || ShowId.PRVE_INFO),
-          assignedShows: role === 'admin' ? Object.values(ShowId) : assignedShows,
+          assignedShow: (role === 'admin' || role === 'viewer') ? 'all' : (assignedShows[0] || ShowId.PRVE_INFO),
+          assignedShows: (role === 'admin' || role === 'viewer') ? Object.values(ShowId) : assignedShows,
           password,
           createdAt: new Date().toISOString()
         };
@@ -153,7 +153,7 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
         } catch (dbErr) {
           handleFirestoreError(dbErr, OperationType.CREATE, `users/${uid}`);
         }
-        setSuccess(`Nalog za urednika "${displayName}" je uspešno kreiran.`);
+        setSuccess(`Nalog za korisnika "${displayName}" je uspešno kreiran.`);
         setIsEditing(null);
       } else if (isEditing) {
         // Saving edits for existing profile
@@ -167,8 +167,8 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
           ...existingUser,
           displayName: displayName.trim(),
           role,
-          assignedShow: role === 'admin' ? 'all' : (assignedShows[0] || ShowId.PRVE_INFO),
-          assignedShows: role === 'admin' ? Object.values(ShowId) : assignedShows,
+          assignedShow: (role === 'admin' || role === 'viewer') ? 'all' : (assignedShows[0] || ShowId.PRVE_INFO),
+          assignedShows: (role === 'admin' || role === 'viewer') ? Object.values(ShowId) : assignedShows,
         };
 
         try {
@@ -328,6 +328,10 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
                             <span className="text-[8px] font-mono font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400 px-1 py-0.5 rounded uppercase">
                               Superurednik
                             </span>
+                          ) : user.role === 'viewer' ? (
+                            <span className="text-[8px] font-mono font-bold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-400 px-1 py-0.5 rounded uppercase font-bold">
+                              Gledalac
+                            </span>
                           ) : (
                             <span className="text-[8px] font-mono font-bold bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 px-1 py-0.5 rounded uppercase">
                               Urednik
@@ -485,14 +489,15 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
                     <select
                       value={role}
                       onChange={(e) => setRole(e.target.value as UserRole)}
-                      className="w-full px-2 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                      className="w-full px-2 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-770 text-zinc-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950"
                     >
                       <option value="editor">Urednik (Uobičajen)</option>
+                      <option value="viewer">Gledalac (Samo pregled i pretraga)</option>
                       <option value="admin">Superurednik (Administrator)</option>
                     </select>
                   </div>
 
-                  {/* Assigned Sector (Disabled if Role is Admin/Superurednik) */}
+                  {/* Assigned Sector (Disabled if Role is Admin/Superurednik or Viewer) */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                       Dodeljene Emisije (Sektor rada)
@@ -500,6 +505,10 @@ export default function EditorManagement({ onClose }: EditorManagementProps) {
                     {role === 'admin' ? (
                       <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-850 text-zinc-650 dark:text-zinc-400 rounded text-xs select-none">
                         ✨ <span className="font-semibold text-zinc-800 dark:text-zinc-200">Sve emisije</span> su predefinisano dodeljene za administrativnu ulogu.
+                      </div>
+                    ) : role === 'viewer' ? (
+                      <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-850 text-sky-750 dark:text-sky-400 rounded text-xs select-none">
+                        👁️ <span className="font-semibold text-sky-850 dark:text-sky-300">Sve emisije (Samo pregled)</span> su dostupne za ulogu gledaoca.
                       </div>
                     ) : (
                       <div className="p-2 border border-zinc-200 dark:border-zinc-750 bg-white dark:bg-zinc-950/30 rounded max-h-[160px] overflow-y-auto space-y-1">
