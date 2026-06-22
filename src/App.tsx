@@ -48,7 +48,10 @@ import {
   Sun,
   ListFilter,
   Menu,
-  X
+  X,
+  Sparkles,
+  Car,
+  MapPin
 } from 'lucide-react';
 
 export default function App() {
@@ -979,6 +982,27 @@ export default function App() {
                               ) : (
                                 <p className="text-slate-350 dark:text-slate-600 text-[11px] italic mt-0.5">bez upisanog zanimanja</p>
                               )}
+                              
+                              {/* Logistics badges */}
+                              {(guest.makeupStatus === 'da' || guest.transportStatus === 'da') && (
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                  {guest.makeupStatus === 'da' && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] bg-pink-50 dark:bg-pink-950/30 text-pink-700 dark:text-pink-300 px-1.5 py-0.5 rounded border border-pink-100 dark:border-pink-900/40 font-bold select-none" title="Potrebna šminka">
+                                      <Sparkles className="w-3 h-3 text-pink-500 shrink-0" />
+                                      Šminka
+                                    </span>
+                                  )}
+                                  {guest.transportStatus === 'da' && (
+                                    <span 
+                                      className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-bold select-none cursor-help"
+                                      title={`Adresa prevoza: ${guest.transportDetails || 'Nije prenesena'}`}
+                                    >
+                                      <Car className="w-3 h-3 text-indigo-500 shrink-0" />
+                                      Prevoz
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </td>
 
                             <td className="px-4 py-3.5">
@@ -1022,12 +1046,23 @@ export default function App() {
                             </td>
 
                             <td className="px-4 py-3.5 min-w-[150px] max-w-[250px]">
+                              {guest.transportStatus === 'da' && guest.transportDetails && (
+                                <div className="mb-2 p-1.5 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/30 rounded text-[11px]">
+                                  <span className="font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1 mb-0.5">
+                                    <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                    Adresa prevoza:
+                                  </span>
+                                  <p className="text-zinc-650 dark:text-zinc-300 font-semibold italic select-all break-words">
+                                    {guest.transportDetails}
+                                  </p>
+                                </div>
+                              )}
                               {guest.notes ? (
                                 <p className="text-slate-500 dark:text-slate-400 text-[11px] line-clamp-2 md:max-w-[230px] leading-relaxed" title={guest.notes}>
                                   {guest.notes}
                                 </p>
                               ) : (
-                                <span className="text-slate-300 dark:text-slate-700">-</span>
+                                !guest.transportDetails && <span className="text-slate-300 dark:text-slate-700">-</span>
                               )}
                               {guest.updatedByName && (
                                 <span className="block text-[9px] text-slate-350 hover:text-slate-400 transition-colors mt-1 font-semibold">
@@ -1114,6 +1149,24 @@ export default function App() {
                               </p>
                             ) : (
                               <p className="text-zinc-405 dark:text-zinc-600 text-xs italic mt-0.5">bez upisanog zanimanja</p>
+                            )}
+
+                            {/* Mobile logistics badges */}
+                            {(guest.makeupStatus === 'da' || guest.transportStatus === 'da') && (
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {guest.makeupStatus === 'da' && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] bg-pink-50 dark:bg-pink-950/30 text-pink-700 dark:text-pink-300 px-1.5 py-0.5 rounded border border-pink-100 dark:border-pink-900/40 font-bold select-none">
+                                    <Sparkles className="w-2.5 h-2.5 text-pink-500 shrink-0" />
+                                    Šminka ok
+                                  </span>
+                                )}
+                                {guest.transportStatus === 'da' && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40 font-bold select-none">
+                                    <Car className="w-2.5 h-2.5 text-indigo-500 shrink-0" />
+                                    Prevoz
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
 
@@ -1215,7 +1268,18 @@ export default function App() {
 
                         {/* Notes & Actions combined on 1 line if editable */}
                         <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                          <div className="min-w-0">
+                          <div className="min-w-0 w-full space-y-1">
+                            {guest.transportStatus === 'da' && guest.transportDetails && (
+                              <div className="text-[11px] p-2 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded flex flex-col">
+                                <span className="font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-indigo-500" />
+                                  Prevoz adresa:
+                                </span>
+                                <span className="text-zinc-650 dark:text-zinc-300 font-semibold italic break-words mt-0.5 select-all">
+                                  {guest.transportDetails}
+                                </span>
+                              </div>
+                            )}
                             {guest.notes ? (
                               <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
                                 <span className="font-bold text-zinc-400 dark:text-zinc-500">Napomena: </span>

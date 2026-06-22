@@ -222,4 +222,7 @@ export interface Guest {
   updatedByEmail?: string;
   updatedByName?: string;
   updatedAt?: string;
+  makeupStatus?: 'da' | 'ne';
+  transportStatus?: 'da' | 'ne';
+  transportDetails?: string;
 }

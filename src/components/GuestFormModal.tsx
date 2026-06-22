@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Guest, ShowId, SHOWS, UserProfile, GuestConfirmationStatus } from '../types';
-import { X, Calendar, Clock, User, Briefcase, Phone, BookOpen, FileText, CheckCircle, HelpCircle, XCircle, Search } from 'lucide-react';
+import { X, Calendar, Clock, User, Briefcase, Phone, BookOpen, FileText, CheckCircle, HelpCircle, XCircle, Search, Sparkles, Car, MapPin } from 'lucide-react';
 
 interface GuestFormModalProps {
   isOpen: boolean;
@@ -167,6 +167,9 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<GuestConfirmationStatus>('predlozen');
   const [showId, setShowId] = useState<ShowId>(ShowId.PRVE_INFO);
+  const [makeupStatus, setMakeupStatus] = useState<'da' | 'ne'>('ne');
+  const [transportStatus, setTransportStatus] = useState<'da' | 'ne'>('ne');
+  const [transportDetails, setTransportDetails] = useState('');
   const [loading, setLoading] = useState(false);
   const [validationError, setValidationError] = useState('');
 
@@ -182,6 +185,9 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
       setNotes(guest.notes || '');
       setStatus(guest.status);
       setShowId(guest.showId);
+      setMakeupStatus(guest.makeupStatus || 'ne');
+      setTransportStatus(guest.transportStatus || 'ne');
+      setTransportDetails(guest.transportDetails || '');
     } else {
       // If adding new, set default show based on logged in user's show
       setFullName('');
@@ -194,6 +200,9 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
       setContactPhone('');
       setNotes('');
       setStatus('predlozen');
+      setMakeupStatus('ne');
+      setTransportStatus('ne');
+      setTransportDetails('');
       
       // Select first eligible show
       if (userProfile.role === 'admin' || userProfile.assignedShow === 'all') {
@@ -272,6 +281,9 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
         notes: notes.trim(),
         status,
         showId,
+        makeupStatus,
+        transportStatus,
+        transportDetails: transportStatus === 'da' ? transportDetails.trim() : '',
         createdByUid: guest ? guest.createdByUid : userProfile.uid,
         createdByEmail: guest ? guest.createdByEmail : userProfile.email,
         createdByName: guest ? guest.createdByName : userProfile.displayName,
@@ -580,6 +592,56 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
                 <option value="otkazao" className="bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white font-medium">❌ Otkazao</option>
               </select>
             </div>
+
+            {/* Makeup selection */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5 font-sans">
+                Šminka
+              </label>
+              <select
+                value={makeupStatus}
+                onChange={(e) => setMakeupStatus(e.target.value as 'da' | 'ne')}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs font-semibold"
+              >
+                <option value="ne" className="bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white font-medium">💄 Nije potrebna šminka</option>
+                <option value="da" className="bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white font-medium">✨ Potrebna je šminka</option>
+              </select>
+            </div>
+
+            {/* Transport selection */}
+            <div className={transportStatus === 'da' ? 'md:col-span-1' : 'md:col-span-2'}>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5 font-sans">
+                Prevoz za gosta
+              </label>
+              <select
+                value={transportStatus}
+                onChange={(e) => setTransportStatus(e.target.value as 'da' | 'ne')}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs font-semibold"
+              >
+                <option value="ne" className="bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white font-medium">🚗 Ne treba prevoz</option>
+                <option value="da" className="bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white font-medium">🗺️ Treba prevoz (Organizovati)</option>
+              </select>
+            </div>
+
+            {/* Transport details (shown only if required) */}
+            {transportStatus === 'da' && (
+              <div className="md:col-span-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5 label-required font-sans">
+                  Adresa i detalji prevoza
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-2.5 w-4.5 h-4.5 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    value={transportDetails}
+                    onChange={(e) => setTransportDetails(e.target.value)}
+                    placeholder="Deo grada, adresa, vreme polaska..."
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Notes / Napomena */}
             <div className="md:col-span-2">
