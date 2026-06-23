@@ -134,24 +134,75 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
 
   // Dynamic frequent guests resolver (merges PREDEFINED_GUESTS with other unique entries from the database)
   const getMergedFrequentGuests = () => {
-    const list = [...PREDEFINED_GUESTS];
-    const seenNames = new Set(list.map(g => g.fullName.toLowerCase().trim()));
-    
+    // Collect the most up-to-date data for each guest name (case-insensitive) from history
+    const latestDataMap = new Map<string, {
+      contactPhone?: string;
+      transportDetails?: string;
+      occupation?: string;
+      topic?: string;
+    }>();
+
+    if (guests && Array.isArray(guests)) {
+      guests.forEach(g => {
+        const nameKey = g.fullName.toLowerCase().trim();
+        if (!nameKey) return;
+
+        const existingData = latestDataMap.get(nameKey) || {};
+        
+        // Since list is sorted 'appointmentDate' asc, newer records come later,
+        // so we overwrite previous ones if the fields are present and non-empty.
+        latestDataMap.set(nameKey, {
+          contactPhone: g.contactPhone && g.contactPhone.trim() ? g.contactPhone : existingData.contactPhone,
+          transportDetails: g.transportDetails && g.transportDetails.trim() ? g.transportDetails : existingData.transportDetails,
+          occupation: g.occupation && g.occupation.trim() ? g.occupation : existingData.occupation,
+          topic: g.topic && g.topic.trim() ? g.topic : existingData.topic,
+        });
+      });
+    }
+
+    const list: Array<{
+      fullName: string;
+      occupation: string;
+      contactPhone: string;
+      topic: string;
+      transportDetails?: string;
+    }> = [];
+
+    const seenNames = new Set<string>();
+
+    // Add predefined templates first, enriching with latest recorded data (phone, address, etc.)
+    PREDEFINED_GUESTS.forEach(pg => {
+      const nameKey = pg.fullName.toLowerCase().trim();
+      seenNames.add(nameKey);
+
+      const dbData = latestDataMap.get(nameKey);
+      list.push({
+        fullName: pg.fullName,
+        occupation: dbData?.occupation || pg.occupation || '',
+        contactPhone: dbData?.contactPhone || pg.contactPhone || '',
+        topic: dbData?.topic || pg.topic || '',
+        transportDetails: dbData?.transportDetails || '',
+      });
+    });
+
+    // Add other unique guests from the database
     if (guests && Array.isArray(guests)) {
       guests.forEach(g => {
         const nameKey = g.fullName.toLowerCase().trim();
         if (nameKey && !seenNames.has(nameKey)) {
           seenNames.add(nameKey);
+          const dbData = latestDataMap.get(nameKey);
           list.push({
             fullName: g.fullName,
-            occupation: g.occupation || '',
-            contactPhone: g.contactPhone || '',
-            topic: g.topic || '',
+            occupation: dbData?.occupation || g.occupation || '',
+            contactPhone: dbData?.contactPhone || g.contactPhone || '',
+            topic: dbData?.topic || g.topic || '',
+            transportDetails: dbData?.transportDetails || '',
           });
         }
       });
     }
-    
+
     return list;
   };
 
@@ -454,6 +505,7 @@ export default function GuestFormModal({ isOpen, onClose, onSave, guest, userPro
                                 setOccupation(pg.occupation);
                                 setContactPhone(pg.contactPhone);
                                 setTopic(pg.topic);
+                                setTransportDetails(pg.transportDetails || '');
                                 setIsFrequentDropdownOpen(false);
                                 setFrequentGuestSearch('');
                               }}
