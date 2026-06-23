@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { auth, db } from '../firebase';
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { X, Lock, ShieldAlert, CheckCircle, Eye, EyeOff, Loader } from 'lucide-react';
 import { UserProfile } from '../types';
@@ -54,16 +54,52 @@ export default function ChangePasswordModal({ isOpen, onClose, showToast, userPr
 
     try {
       let updatedInFirestore = false;
+      let isFirebaseAuthUser = false;
 
-      // Case A: Custom editor who is logged in via credentials stored directly inside UserProfile in Firestore
-      if (userProfile.password !== undefined) {
-        if (currentPassword !== userProfile.password) {
+      // 1. Try to sign in with Firebase standard Auth first to verify if they are a standard Auth user,
+      // and re-establish standard Auth session if it was not active. This guarantees we can call updatePassword.
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, userProfile.email, currentPassword);
+        // Standard Auth user found and authenticated successfully!
+        isFirebaseAuthUser = true;
+
+        // Update password in Firebase standard Auth
+        await updatePassword(userCredential.user, newPassword);
+
+        // Update in Firestore as well
+        const userDocRef = doc(db, 'users', userProfile.uid);
+        await setDoc(userDocRef, {
+          ...userProfile,
+          password: newPassword
+        });
+        updatedInFirestore = true;
+      } catch (authErr: any) {
+        console.log("Firebase Auth verification check status (safe to proceed for custom db accounts):", authErr);
+        
+        // If the error is 'auth/wrong-password' or 'auth/invalid-credential', it means they ARE a Firebase Auth user
+        // but entered the wrong password! We must stop and report wrong password.
+        if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/invalid-login-credentials') {
           setError('Netačna trenutna lozinka.');
           setLoading(false);
           return;
         }
+        
+        // Fallback for custom DB-only accounts (the user-not-found case, or when signup is not used)
+      }
 
-        // Update the password inside the user's Firestore document
+      // 2. If it's a custom DB-only user profile (or Firebase Auth didn't register them)
+      if (!isFirebaseAuthUser) {
+        // If they have a password set in the custom database profile, we must verify it!
+        if (userProfile.password !== undefined && userProfile.password !== '') {
+          if (currentPassword !== userProfile.password) {
+            setError('Netačna trenutna lozinka.');
+            setLoading(false);
+            return;
+          }
+        }
+        // Note: If userProfile.password is undefined or empty, we allow initializing it because they didn't have one before.
+
+        // Update the password in Firestore users
         const userDocRef = doc(db, 'users', userProfile.uid);
         await setDoc(userDocRef, {
           ...userProfile,
@@ -72,26 +108,8 @@ export default function ChangePasswordModal({ isOpen, onClose, showToast, userPr
         updatedInFirestore = true;
       }
 
-      // Case B: Standard Firebase Authentication is also active
-      if (user && user.email) {
-        // 1. Reauthenticate user to ensure they can update password securely (avoids auth/requires-recent-login)
-        const credential = EmailAuthProvider.credential(user.email, currentPassword);
-        await reauthenticateWithCredential(user, credential);
-
-        // 2. Update password in standard Auth
-        await updatePassword(user, newPassword);
-
-        // 3. If standard user did not have an initialized password in Firestore but userProfile exists, write it down
-        if (!updatedInFirestore) {
-          const userDocRef = doc(db, 'users', userProfile.uid);
-          await setDoc(userDocRef, {
-            ...userProfile,
-            password: newPassword
-          });
-        }
-      } else if (!updatedInFirestore) {
-        // Safe guard in case there is neither a database password nor an active auth session
-        setError('Nije moguće promeniti lozinku za ovaj tip naloga.');
+      if (!updatedInFirestore) {
+        setError('Došlo je do greške prilikom čuvanja lozinke u bazi.');
         setLoading(false);
         return;
       }
