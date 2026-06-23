@@ -524,7 +524,7 @@ export default function App() {
       )}
 
       {/* 1. EDITORIAL SIDEBAR for Desktop or Collapsed Drawer for Mobile */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col justify-between transform transition-transform duration-300 md:static md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:flex shrink-0 h-full md:h-auto`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col justify-between transform transition-transform duration-300 md:sticky md:top-0 md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:flex shrink-0 h-full md:h-screen`}>
         <div className="flex-1 flex flex-col overflow-y-auto">
           {/* Newsroom Brand Section */}
           <div className="p-5 border-b border-zinc-200 dark:border-zinc-800">
