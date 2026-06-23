@@ -631,7 +631,7 @@ export default function App() {
                 </button>
               )}
 
-              {currentUser && (
+              {currentUser && !currentUser.isPredefinedAdmin && (
                 <button
                   onClick={() => setIsChangePasswordOpen(true)}
                   className="w-full text-center py-1.5 mb-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-805 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] font-mono font-bold uppercase tracking-widest rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 border border-zinc-200 dark:border-zinc-800/60"
@@ -1383,11 +1383,12 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isChangePasswordOpen && currentUser && (
+        {isChangePasswordOpen && currentUser && !currentUser.isPredefinedAdmin && (
           <ChangePasswordModal
             isOpen={isChangePasswordOpen}
             onClose={() => setIsChangePasswordOpen(false)}
             showToast={showToast}
+            userProfile={userProfile}
           />
         )}
       </AnimatePresence>

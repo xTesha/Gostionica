@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { X, Lock, ShieldAlert, CheckCircle, Eye, EyeOff, Loader } from 'lucide-react';
+import { UserProfile } from '../types';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
   showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  userProfile: UserProfile | null;
 }
 
-export default function ChangePasswordModal({ isOpen, onClose, showToast }: ChangePasswordModalProps) {
+export default function ChangePasswordModal({ isOpen, onClose, showToast, userProfile }: ChangePasswordModalProps) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -43,19 +46,55 @@ export default function ChangePasswordModal({ isOpen, onClose, showToast }: Chan
     setLoading(true);
     const user = auth.currentUser;
 
-    if (!user || !user.email) {
+    if (!userProfile) {
       setError('Korisnik nije prijavljen.');
       setLoading(false);
       return;
     }
 
     try {
-      // 1. Reauthenticate user to ensure they can update password securely (avoids auth/requires-recent-login)
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
-      await reauthenticateWithCredential(user, credential);
+      let updatedInFirestore = false;
 
-      // 2. Update password
-      await updatePassword(user, newPassword);
+      // Case A: Custom editor who is logged in via credentials stored directly inside UserProfile in Firestore
+      if (userProfile.password !== undefined) {
+        if (currentPassword !== userProfile.password) {
+          setError('Netačna trenutna lozinka.');
+          setLoading(false);
+          return;
+        }
+
+        // Update the password inside the user's Firestore document
+        const userDocRef = doc(db, 'users', userProfile.uid);
+        await setDoc(userDocRef, {
+          ...userProfile,
+          password: newPassword
+        });
+        updatedInFirestore = true;
+      }
+
+      // Case B: Standard Firebase Authentication is also active
+      if (user && user.email) {
+        // 1. Reauthenticate user to ensure they can update password securely (avoids auth/requires-recent-login)
+        const credential = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, credential);
+
+        // 2. Update password in standard Auth
+        await updatePassword(user, newPassword);
+
+        // 3. If standard user did not have an initialized password in Firestore but userProfile exists, write it down
+        if (!updatedInFirestore) {
+          const userDocRef = doc(db, 'users', userProfile.uid);
+          await setDoc(userDocRef, {
+            ...userProfile,
+            password: newPassword
+          });
+        }
+      } else if (!updatedInFirestore) {
+        // Safe guard in case there is neither a database password nor an active auth session
+        setError('Nije moguće promeniti lozinku za ovaj tip naloga.');
+        setLoading(false);
+        return;
+      }
 
       setSuccessMsg('Lozinka je uspešno promenjena!');
       showToast('Lozinka je uspešno promenjena.', 'success');
