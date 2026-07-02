@@ -23,38 +23,57 @@ export default function SubmitWorkReportModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [hasExistingToday, setHasExistingToday] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [hasExistingReport, setHasExistingReport] = useState(false);
 
   // Get current local date in YYYY-MM-DD format
   const getTodayDateString = () => {
     return new Date().toLocaleDateString('en-CA'); // Always YYYY-MM-DD in local time
   };
 
+  const getAvailableDates = () => {
+    return [0, 1, 2, 3].map(offset => {
+      const d = new Date();
+      d.setDate(d.getDate() - offset);
+      return {
+        dateStr: d.toLocaleDateString('en-CA'),
+        displayLabel: d.toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit' }) + 
+          (offset === 0 ? ' (Danas)' : offset === 1 ? ' (Juče)' : offset === 2 ? ' (Pre 2 dana)' : ' (Pre 3 dana)')
+      };
+    });
+  };
+
   useEffect(() => {
     if (isOpen) {
+      const today = getTodayDateString();
+      setSelectedDate(today);
       setContent('');
       setError(null);
       setSuccess(false);
-      checkExistingReport();
     }
   }, [isOpen]);
 
-  const checkExistingReport = async () => {
+  useEffect(() => {
+    if (isOpen && selectedDate) {
+      checkExistingReport(selectedDate);
+    }
+  }, [isOpen, selectedDate]);
+
+  const checkExistingReport = async (dateToCheck: string) => {
     try {
-      const today = getTodayDateString();
       const q = query(
         collection(db, 'work_reports'),
         where('userId', '==', userProfile.uid),
-        where('date', '==', today)
+        where('date', '==', dateToCheck)
       );
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
-        setHasExistingToday(true);
-        // Pre-populate with existing report content
+        setHasExistingReport(true);
         const docData = querySnapshot.docs[0].data();
         setContent(docData.content || '');
       } else {
-        setHasExistingToday(false);
+        setHasExistingReport(false);
+        setContent('');
       }
     } catch (err) {
       console.error('Error checking existing work report:', err);
@@ -68,12 +87,16 @@ export default function SubmitWorkReportModal({
       return;
     }
 
+    if (hasExistingReport) {
+      setError('Izmena postojećeg izveštaja nije dozvoljena.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const today = getTodayDateString();
-      const reportId = `${userProfile.uid}_${today}`;
+      const reportId = `${userProfile.uid}_${selectedDate}`;
       const reportRef = doc(db, 'work_reports', reportId);
 
       const reportData: WorkReport = {
@@ -81,7 +104,7 @@ export default function SubmitWorkReportModal({
         userId: userProfile.uid,
         userEmail: userProfile.email,
         userDisplayName: userProfile.displayName,
-        date: today,
+        date: selectedDate,
         content: content.trim(),
         createdAt: new Date().toISOString()
       };
@@ -143,17 +166,42 @@ export default function SubmitWorkReportModal({
                 </label>
                 <div className="p-2.5 bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-xs font-mono rounded border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
                   <span>{userProfile.displayName} ({userProfile.email})</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 uppercase rounded">
-                    Danas: {new Date().toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-400 uppercase rounded">
+                    {userProfile.role === 'admin' ? 'Superurednik' : userProfile.role === 'editor' ? 'Urednik' : 'Novinar'}
                   </span>
                 </div>
               </div>
 
-              {hasExistingToday && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 text-xs rounded border border-amber-100 dark:border-amber-900/50 flex items-start gap-2.5">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                  Izaberite datum za izveštaj
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {getAvailableDates().map((item) => {
+                    const isSelected = selectedDate === item.dateStr;
+                    return (
+                      <button
+                        key={item.dateStr}
+                        type="button"
+                        onClick={() => setSelectedDate(item.dateStr)}
+                        className={`p-2 rounded border text-center transition-all cursor-pointer text-xs font-mono font-medium ${
+                          isSelected
+                            ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white font-bold shadow-xs'
+                            : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-850'
+                        }`}
+                      >
+                        {item.displayLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {hasExistingReport && (
+                <div className="p-3 bg-red-55/10 dark:bg-red-950/20 text-red-800 dark:text-red-400 text-xs rounded border border-red-100 dark:border-red-900/50 flex items-start gap-2.5">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Već ste poslali izveštaj za danas.</span> Ponovno slanje će izmeniti Vaš postojeći današnji radni list.
+                    <span className="font-bold">Izveštaj za ovaj datum je već podnet.</span> Ponovno slanje ili izmena već postojećih radnih listova nisu dozvoljeni.
                   </div>
                 </div>
               )}
@@ -164,7 +212,7 @@ export default function SubmitWorkReportModal({
                     <CheckCircle className="w-7 h-7" />
                   </div>
                   <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Uspravno sačuvano!</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Vaš dnevni radni list je uspešno zabeležen.</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Vaš radni list je uspešno zabeležen u bazi podataka.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -173,14 +221,15 @@ export default function SubmitWorkReportModal({
                   </label>
                   <textarea
                     required
+                    disabled={hasExistingReport}
                     rows={6}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="Unesite detalje o Vašem današnjem radu (vreme dolaska, urađeni prilozi, gosti, statusi emisije, napomene)..."
-                    className="w-full p-3 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white text-xs border border-zinc-300 dark:border-zinc-800 rounded focus:outline-none focus:ring-1 focus:ring-zinc-900 placeholder:text-zinc-400 leading-relaxed resize-none"
+                    placeholder={hasExistingReport ? "Za izabrani datum ste već popunili radni list." : "Unesite detalje o Vašem radu (vreme dolaska, urađeni prilozi, gosti, statusi emisije, napomene)..."}
+                    className="w-full p-3 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white text-xs border border-zinc-300 dark:border-zinc-800 rounded focus:outline-none focus:ring-1 focus:ring-zinc-900 placeholder:text-zinc-400 leading-relaxed resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                   <p className="text-[10px] text-zinc-400">
-                    * Popunjavanje radnog lista je obavezno pre završetka smene. Izveštaj mogu videti samo administratori.
+                    * Popunjavanje radnog lista je obavezno pre završetka smene. Izveštaj mogu videti samo urednici i administratori.
                   </p>
                 </div>
               )}
@@ -202,8 +251,8 @@ export default function SubmitWorkReportModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 disabled:opacity-50 text-xs font-mono font-bold uppercase tracking-widest rounded transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    disabled={loading || hasExistingReport}
+                    className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-mono font-bold uppercase tracking-widest rounded transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     {loading ? (
                       <>

@@ -673,7 +673,7 @@ export default function App() {
                 </button>
               )}
 
-              {(userProfile.role === 'admin' || userProfile.role === 'editor') && (
+              {(userProfile.role === 'admin' || userProfile.role === 'editor' || userProfile.role === 'viewer') && (
                 <button
                   onClick={() => setIsWorkReportsOpen(true)}
                   className="w-full text-center py-1.5 mb-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-mono font-bold uppercase tracking-widest rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95"
@@ -1462,7 +1462,7 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isWorkReportsOpen && currentUser && (userProfile?.role === 'admin' || userProfile?.role === 'editor') && (
+        {isWorkReportsOpen && currentUser && (userProfile?.role === 'admin' || userProfile?.role === 'editor' || userProfile?.role === 'viewer') && (
           <WorkReportsModal
             isOpen={isWorkReportsOpen}
             onClose={() => setIsWorkReportsOpen(false)}
