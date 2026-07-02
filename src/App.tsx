@@ -24,6 +24,9 @@ import GuestFormModal from './components/GuestFormModal';
 import StatsSection from './components/StatsSection';
 import EditorManagement from './components/EditorManagement';
 import ChangePasswordModal from './components/ChangePasswordModal';
+import SubmitWorkReportModal from './components/SubmitWorkReportModal';
+import WorkReportsModal from './components/WorkReportsModal';
+import JournalistDashboard from './components/JournalistDashboard';
 import { 
   Tv, 
   LogIn, 
@@ -51,7 +54,9 @@ import {
   X,
   Sparkles,
   Car,
-  MapPin
+  MapPin,
+  FileText,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function App() {
@@ -63,6 +68,11 @@ export default function App() {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Work Reports state
+  const [isSubmitWorkReportOpen, setIsSubmitWorkReportOpen] = useState(false);
+  const [isWorkReportsOpen, setIsWorkReportsOpen] = useState(false);
+  const [hasSubmittedToday, setHasSubmittedToday] = useState(false);
 
   // Guests data and grid states
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -220,6 +230,25 @@ export default function App() {
       }
     };
   }, []);
+
+  // Listen to today's work report status for the active user
+  useEffect(() => {
+    if (!userProfile) {
+      setHasSubmittedToday(false);
+      return;
+    }
+    const today = new Date().toLocaleDateString('en-CA');
+    const reportId = `${userProfile.uid}_${today}`;
+    const reportDocRef = doc(db, 'work_reports', reportId);
+    
+    const unsubscribeReport = onSnapshot(reportDocRef, (docSnap) => {
+      setHasSubmittedToday(docSnap.exists());
+    }, (error) => {
+      console.error("Error listening to today's work report:", error);
+    });
+    
+    return () => unsubscribeReport();
+  }, [userProfile]);
 
   // Set real-time Firestore load
   useEffect(() => {
@@ -490,6 +519,19 @@ export default function App() {
     );
   }
 
+  if (currentUser && userProfile?.role === 'journalist') {
+    return (
+      <JournalistDashboard
+        userProfile={userProfile}
+        hasSubmittedToday={hasSubmittedToday}
+        handleLogout={handleLogout}
+        timeStr={timeStr}
+        dateStr={dateStr}
+        showToast={showToast}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 antialiased flex flex-col md:flex-row transition-colors duration-300 select-none">
       
@@ -631,10 +673,20 @@ export default function App() {
                 </button>
               )}
 
+              {(userProfile.role === 'admin' || userProfile.role === 'editor') && (
+                <button
+                  onClick={() => setIsWorkReportsOpen(true)}
+                  className="w-full text-center py-1.5 mb-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-mono font-bold uppercase tracking-widest rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95"
+                >
+                  <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                  Radni listovi
+                </button>
+              )}
+
               {currentUser && !currentUser.isPredefinedAdmin && (
                 <button
                   onClick={() => setIsChangePasswordOpen(true)}
-                  className="w-full text-center py-1.5 mb-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-805 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] font-mono font-bold uppercase tracking-widest rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 border border-zinc-200 dark:border-zinc-800/60"
+                  className="w-full text-center py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-805 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] font-mono font-bold uppercase tracking-widest rounded transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 border border-zinc-200 dark:border-zinc-800/60"
                 >
                   <Key className="w-3.5 h-3.5" />
                   Promeni lozinku
@@ -730,7 +782,7 @@ export default function App() {
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>
                     {userProfile?.role === 'viewer' ? (
-                      <span><strong>Režim gledaoca:</strong> Prijavljeni ste sa nalogom za pregled i pretragu. Nemate mogućnost unosa ili izmene podataka.</span>
+                       <span><strong>Režim gledaoca:</strong> Prijavljeni ste sa nalogom za pregled i pretragu. Nemate mogućnost unosa ili izmene podataka.</span>
                     ) : (
                       <span><strong>Režim posmatrača:</strong> Možete pregledati sve unose. Prijavite se kako biste mogli da uređujete rasporede emisija.</span>
                     )}
@@ -748,6 +800,8 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
+
 
         {/* Dynamic Analytics & Statistics Widget */}
         <StatsSection guests={guests} />
@@ -1389,6 +1443,30 @@ export default function App() {
             onClose={() => setIsChangePasswordOpen(false)}
             showToast={showToast}
             userProfile={userProfile}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isSubmitWorkReportOpen && currentUser && userProfile && (
+          <SubmitWorkReportModal
+            isOpen={isSubmitWorkReportOpen}
+            onClose={() => setIsSubmitWorkReportOpen(false)}
+            userProfile={userProfile}
+            db={db}
+            onSuccess={() => {
+              showToast('Radni list uspešno sačuvan!', 'success');
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isWorkReportsOpen && currentUser && (userProfile?.role === 'admin' || userProfile?.role === 'editor') && (
+          <WorkReportsModal
+            isOpen={isWorkReportsOpen}
+            onClose={() => setIsWorkReportsOpen(false)}
+            db={db}
           />
         )}
       </AnimatePresence>

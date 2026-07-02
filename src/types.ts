@@ -158,7 +158,7 @@ export const SHOWS: Record<ShowId, ShowConfig> = {
   }
 };
 
-export type UserRole = "admin" | "editor" | "viewer";
+export type UserRole = "admin" | "editor" | "viewer" | "journalist";
 
 export interface UserProfile {
   uid: string;
@@ -226,3 +226,14 @@ export interface Guest {
   transportStatus?: 'da' | 'ne';
   transportDetails?: string;
 }
+
+export interface WorkReport {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userDisplayName: string;
+  date: string; // YYYY-MM-DD
+  content: string;
+  createdAt: string;
+}
+

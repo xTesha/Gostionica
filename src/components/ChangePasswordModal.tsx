@@ -52,6 +52,18 @@ export default function ChangePasswordModal({ isOpen, onClose, showToast, userPr
       return;
     }
 
+    // Check if the user is a custom DB-only user (has a password property stored on their Firestore document)
+    const isCustomDbUser = userProfile.password !== undefined && userProfile.password !== '';
+    if (isCustomDbUser) {
+      if (currentPassword !== userProfile.password) {
+        setError('Netačna trenutna lozinka.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    setLoading(true);
+
     try {
       let updatedInFirestore = false;
       let isFirebaseAuthUser = false;
@@ -76,29 +88,20 @@ export default function ChangePasswordModal({ isOpen, onClose, showToast, userPr
       } catch (authErr: any) {
         console.log("Firebase Auth verification check status (safe to proceed for custom db accounts):", authErr);
         
-        // If the error is 'auth/wrong-password' or 'auth/invalid-credential', it means they ARE a Firebase Auth user
-        // but entered the wrong password! We must stop and report wrong password.
-        if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/invalid-login-credentials') {
-          setError('Netačna trenutna lozinka.');
-          setLoading(false);
-          return;
-        }
-        
-        // Fallback for custom DB-only accounts (the user-not-found case, or when signup is not used)
-      }
-
-      // 2. If it's a custom DB-only user profile (or Firebase Auth didn't register them)
-      if (!isFirebaseAuthUser) {
-        // If they have a password set in the custom database profile, we must verify it!
-        if (userProfile.password !== undefined && userProfile.password !== '') {
-          if (currentPassword !== userProfile.password) {
+        // If they are NOT a custom DB-only user, we must treat Firebase Auth errors as wrong-password indicators.
+        // For custom DB users, we already pre-validated the password, so any standard auth error just means
+        // they don't have a standard Auth account, which is completely expected.
+        if (!isCustomDbUser) {
+          if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/invalid-login-credentials') {
             setError('Netačna trenutna lozinka.');
             setLoading(false);
             return;
           }
         }
-        // Note: If userProfile.password is undefined or empty, we allow initializing it because they didn't have one before.
+      }
 
+      // 2. Fallback or update custom DB-only user profile
+      if (!isFirebaseAuthUser || isCustomDbUser) {
         // Update the password in Firestore users
         const userDocRef = doc(db, 'users', userProfile.uid);
         await setDoc(userDocRef, {
