@@ -87,8 +87,9 @@ export default function SubmitWorkReportModal({
       return;
     }
 
-    if (hasExistingReport) {
-      setError('Izmena postojećeg izveštaja nije dozvoljena.');
+    const isToday = selectedDate === getTodayDateString();
+    if (hasExistingReport && !isToday) {
+      setError('Izmena postojećeg izveštaja za prošle dane nije dozvoljena.');
       return;
     }
 
@@ -198,12 +199,21 @@ export default function SubmitWorkReportModal({
               </div>
 
               {hasExistingReport && (
-                <div className="p-3 bg-red-55/10 dark:bg-red-950/20 text-red-800 dark:text-red-400 text-xs rounded border border-red-100 dark:border-red-900/50 flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Izveštaj za ovaj datum je već podnet.</span> Ponovno slanje ili izmena već postojećih radnih listova nisu dozvoljeni.
+                selectedDate === getTodayDateString() ? (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 text-xs rounded border border-amber-100 dark:border-amber-900/50 flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Već ste poslali izveštaj za danas.</span> Ponovno slanje će izmeniti Vaš postojeći današnji radni list.
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-3 bg-red-55/10 dark:bg-red-950/20 text-red-800 dark:text-red-400 text-xs rounded border border-red-100 dark:border-red-900/50 flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Izveštaj za ovaj datum je već podnet.</span> Ponovno slanje ili izmena već postojećih radnih listova za prošle dane nisu dozvoljeni.
+                    </div>
+                  </div>
+                )
               )}
 
               {success ? (
@@ -221,11 +231,11 @@ export default function SubmitWorkReportModal({
                   </label>
                   <textarea
                     required
-                    disabled={hasExistingReport}
+                    disabled={hasExistingReport && selectedDate !== getTodayDateString()}
                     rows={6}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder={hasExistingReport ? "Za izabrani datum ste već popunili radni list." : "Unesite detalje o Vašem radu (vreme dolaska, urađeni prilozi, gosti, statusi emisije, napomene)..."}
+                    placeholder={hasExistingReport && selectedDate !== getTodayDateString() ? "Za izabrani datum ste već popunili radni list." : "Unesite detalje o Vašem radu (vreme dolaska, urađeni prilozi, gosti, statusi emisije, napomene)..."}
                     className="w-full p-3 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white text-xs border border-zinc-300 dark:border-zinc-800 rounded focus:outline-none focus:ring-1 focus:ring-zinc-900 placeholder:text-zinc-400 leading-relaxed resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                   <p className="text-[10px] text-zinc-400">
@@ -251,7 +261,7 @@ export default function SubmitWorkReportModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={loading || hasExistingReport}
+                    disabled={loading || (hasExistingReport && selectedDate !== getTodayDateString())}
                     className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-mono font-bold uppercase tracking-widest rounded transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     {loading ? (
